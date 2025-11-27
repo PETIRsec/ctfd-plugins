@@ -1,0 +1,134 @@
+{% extends "admin/base.html" %}
+
+{% block stylesheets %}
+<style>
+.discord-webhook-config {
+    padding: 20px;
+}
+.form-group {
+    margin-bottom: 20px;
+}
+textarea {
+    font-family: monospace;
+}
+.error-message {
+    color: #dc3545;
+    padding: 10px;
+    background-color: #f8d7da;
+    border: 1px solid #f5c6cb;
+    border-radius: 4px;
+    margin-bottom: 20px;
+}
+.success-message {
+    color: #155724;
+    padding: 10px;
+    background-color: #d4edda;
+    border: 1px solid #c3e6cb;
+    border-radius: 4px;
+    margin-bottom: 20px;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="jumbotron">
+    <div class="container">
+        <h1>Discord Webhook Configuration</h1>
+    </div>
+</div>
+<div class="container">
+    <div class="discord-webhook-config">
+        {% if error %}
+        <div class="error-message">{{ error }}</div>
+        {% endif %}
+        
+        {% if success %}
+        <div class="success-message">{{ success }}</div>
+        {% endif %}
+        
+        <form method="POST" action="{{ url_for('discord_webhook.admin_config') }}">
+            <input type="hidden" name="nonce" value="{{ Session.nonce }}">
+            <div class="form-group">
+                <label for="webhook_url">
+                    <strong>Discord Webhook URL</strong>
+                </label>
+                <input 
+                    type="text" 
+                    class="form-control" 
+                    id="webhook_url" 
+                    name="webhook_url" 
+                    value="{{ webhook_url }}"
+                    placeholder="https://discord.com/api/webhooks/..."
+                >
+                <small class="form-text text-muted">
+                    The Discord webhook URL where announcements will be sent. 
+                    <a href="https://support.discord.com/hc/en-us/articles/228383668-Intro-to-Webhooks" target="_blank">How to create a webhook</a>
+                </small>
+            </div>
+            
+            <div class="form-group">
+                <label for="first_blood_template">
+                    <strong>First Blood Announcement Template</strong>
+                </label>
+                <textarea 
+                    class="form-control" 
+                    id="first_blood_template" 
+                    name="first_blood_template" 
+                    rows="3"
+                >{{ first_blood_template }}</textarea>
+                <small class="form-text text-muted">
+                    Template for first blood announcements. Available variables: <code>{user_name}</code>, <code>{chal_name}</code>, <code>{emojis}</code>
+                </small>
+            </div>
+            
+            <div class="form-group">
+                <label for="solve_template">
+                    <strong>Solve Announcement Template</strong>
+                </label>
+                <textarea 
+                    class="form-control" 
+                    id="solve_template" 
+                    name="solve_template" 
+                    rows="3"
+                >{{ solve_template }}</textarea>
+                <small class="form-text text-muted">
+                    Template for solve announcements (when announce all solves is enabled). Available variables: <code>{user_name}</code>, <code>{chal_name}</code>, <code>{emojis}</code>
+                </small>
+            </div>
+            
+            <div class="form-group">
+                <label for="announce_all">
+                    <strong>Announce All Solves</strong>
+                </label>
+                <select class="form-control" id="announce_all" name="announce_all">
+                    <option value="false" {% if announce_all == 'false' %}selected{% endif %}>Only First Blood</option>
+                    <option value="true" {% if announce_all == 'true' %}selected{% endif %}>All Solves</option>
+                </select>
+                <small class="form-text text-muted">
+                    Whether to announce all solves or only first bloods.
+                </small>
+            </div>
+            
+            <div class="form-group">
+                <label for="category_emojis">
+                    <strong>Category Emojis (JSON)</strong>
+                </label>
+                <textarea 
+                    class="form-control" 
+                    id="category_emojis" 
+                    name="category_emojis" 
+                    rows="5"
+                >{{ category_emojis }}</textarea>
+                <small class="form-text text-muted">
+                    JSON object mapping category names to arrays of emoji strings. Example: <code>{"web": [":globe_with_meridians:"], "crypto": [":sob::closed_lock_with_key:"]}</code>
+                </small>
+            </div>
+            
+            <div class="form-group">
+                <button type="submit" class="btn btn-primary">Save Configuration</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+

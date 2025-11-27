@@ -1,0 +1,5 @@
+{
+    "name": "Discord Webhook",
+    "route": "/discord-webhook/admin/config"
+}
+
