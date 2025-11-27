@@ -1,0 +1,106 @@
+{% extends "admin/base.html" %}
+
+{% block content %}
+<div class="jumbotron">
+  <div class="container">
+    <h1>{% trans %}Face & Location Verification - Users{% endtrans %}</h1>
+  </div>
+</div>
+
+<div class="container">
+  <div class="row">
+    <div class="col-md-12">
+      <div class="float-right mb-3">
+        <a href="{{ url_for('face_location_verification.admin_logs') }}" class="btn btn-secondary">
+          <i class="fas fa-list"></i> {% trans %}View Logs{% endtrans %}
+        </a>
+      </div>
+      
+      <table class="table table-striped">
+        <thead>
+          <tr>
+            <th>{% trans %}User ID{% endtrans %}</th>
+            <th>{% trans %}Name{% endtrans %}</th>
+            <th>{% trans %}Email{% endtrans %}</th>
+            <th>{% trans %}Admin{% endtrans %}</th>
+            <th>{% trans %}Face Captured{% endtrans %}</th>
+            <th>{% trans %}Location Captured{% endtrans %}</th>
+            <th>{% trans %}Verification Complete{% endtrans %}</th>
+            <th>{% trans %}IP Address{% endtrans %}</th>
+            <th>{% trans %}Actions{% endtrans %}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for user in users %}
+          {% set verification = user_verifications[user.id].verification %}
+          {% set is_complete = user_verifications[user.id].is_complete %}
+          {% set is_admin = user_verifications[user.id].is_admin %}
+          <tr>
+            <td>{{ user.id }}</td>
+            <td>
+              <a href="{{ url_for('admin.users_detail', user_id=user.id) }}">
+                {{ user.name }}
+              </a>
+            </td>
+            <td>{{ user.email }}</td>
+            <td>
+              {% if is_admin %}
+                <span class="badge bg-primary">{% trans %}True{% endtrans %}</span>
+              {% else %}
+                <span class="badge bg-secondary">{% trans %}False{% endtrans %}</span>
+              {% endif %}
+            </td>
+            <td>
+              {% if verification and verification.face_image_path %}
+                <span class="badge bg-success"><i class="fas fa-check"></i> {% trans %}Yes{% endtrans %}</span>
+              {% else %}
+                <span class="badge bg-danger"><i class="fas fa-times"></i> {% trans %}No{% endtrans %}</span>
+              {% endif %}
+            </td>
+            <td>
+              {% if verification and verification.latitude %}
+                <span class="badge bg-success"><i class="fas fa-check"></i> {% trans %}Yes{% endtrans %}</span>
+                <br>
+                <small>
+                  <a href="https://www.google.com/maps?q={{ verification.latitude }},{{ verification.longitude }}" target="_blank">
+                    {{ "%.4f"|format(verification.latitude) }}, {{ "%.4f"|format(verification.longitude) }}
+                  </a>
+                </small>
+              {% else %}
+                <span class="badge bg-danger"><i class="fas fa-times"></i> {% trans %}No{% endtrans %}</span>
+              {% endif %}
+            </td>
+            <td>
+              {% if is_complete %}
+                <span class="badge bg-success"><i class="fas fa-check-circle"></i> {% trans %}Complete{% endtrans %}</span>
+              {% else %}
+                <span class="badge bg-warning"><i class="fas fa-exclamation-circle"></i> {% trans %}Incomplete{% endtrans %}</span>
+              {% endif %}
+            </td>
+            <td>
+              {% if verification %}
+                {{ verification.ip_address or '-' }}
+              {% else %}
+                -
+              {% endif %}
+            </td>
+            <td>
+              {% if verification and verification.face_image_path %}
+                {% set image_filename = verification.face_image_path.split('/')[-1] %}
+                <a href="{{ url_for('face_location_verification.get_face_image', filename=image_filename) }}" 
+                   class="btn btn-sm btn-primary" target="_blank">
+                  <i class="fas fa-image"></i> {% trans %}View Face{% endtrans %}
+                </a>
+              {% else %}
+                -
+              {% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}
+

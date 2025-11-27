@@ -1,0 +1,37 @@
+{% extends "admin/config.html" %}
+
+{% block custom_stylesheets %}
+<style>
+.face-location-config {
+    padding: 20px;
+}
+</style>
+{% endblock %}
+
+{% block custom_content %}
+<div class="face-location-config">
+    <h3>Face & Location Verification Settings</h3>
+    
+    <div class="form-group">
+        <label for="face_location_scoreboard_require_verification">
+            <strong>Scoreboard Verification Requirement</strong>
+        </label>
+        <select class="form-control" id="face_location_scoreboard_require_verification" name="face_location_scoreboard_require_verification">
+            <option value="true" {% if get_config('face_location_scoreboard_require_verification', default='true') == 'true' %}selected{% endif %}>
+                Require verification (authenticated users must verify face and location)
+            </option>
+            <option value="false" {% if get_config('face_location_scoreboard_require_verification', default='true') == 'false' %}selected{% endif %}>
+                Public access (no verification required, visible to unauthenticated users)
+            </option>
+        </select>
+        <small class="form-text text-muted">
+            Choose whether the scoreboard requires face and location verification for authenticated users, or is publicly accessible without verification.
+        </small>
+    </div>
+    
+    <div class="form-group">
+        <button type="submit" class="btn btn-primary">Save Settings</button>
+    </div>
+</div>
+{% endblock %}
+
