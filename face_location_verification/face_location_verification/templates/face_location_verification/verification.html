@@ -1,0 +1,141 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="jumbotron">
+  <div class="container">
+    <h1>{% trans %}Face & Location Verification{% endtrans %}</h1>
+    <p class="lead">{% trans %}Please capture your face and allow location access to continue{% endtrans %}</p>
+  </div>
+</div>
+
+<div class="container">
+  <div class="row">
+    <div class="col-md-12">
+      {% include "components/errors.html" %}
+    </div>
+  </div>
+
+  <div class="row">
+    <div class="col-md-6">
+      <div class="card mb-4">
+        <div class="card-header">
+          <h3>{% trans %}Face Capture{% endtrans %}</h3>
+        </div>
+        <div class="card-body">
+          {% if face_captured %}
+            <div class="alert alert-success">
+              <i class="fas fa-check-circle"></i> {% trans %}Face already captured{% endtrans %}
+            </div>
+            <div id="captured-face-preview" class="text-center mb-3">
+              {% if verification and verification.face_image_path %}
+                {% set image_filename = verification.face_image_path.split('/')[-1] %}
+                <img id="captured-face-img" 
+                     data-filename="{{ image_filename }}"
+                     src="{{ url_for('face_location_verification.get_face_image', filename=image_filename) }}" 
+                     alt="Captured Face" 
+                     class="img-thumbnail" 
+                     style="max-width: 300px; max-height: 300px;"
+                     onerror="this.style.display='none'">
+              {% else %}
+                <img id="captured-face-img" src="" alt="Captured Face" class="img-thumbnail" style="max-width: 300px; max-height: 300px; display: none;">
+              {% endif %}
+            </div>
+          {% else %}
+            <div id="face-capture-section">
+              <video id="video" autoplay playsinline style="width: 100%; max-width: 500px; display: block; margin: 0 auto;"></video>
+              <canvas id="canvas" style="display: none;"></canvas>
+              <div class="text-center mt-3">
+                <button id="capture-btn" class="btn btn-primary">
+                  <i class="fas fa-camera"></i> {% trans %}Capture Face{% endtrans %}
+                </button>
+              </div>
+            </div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+    <div class="col-md-6">
+      <div class="card mb-4">
+        <div class="card-header">
+          <h3>{% trans %}Location Capture{% endtrans %}</h3>
+        </div>
+        <div class="card-body">
+          {% if location_captured %}
+            <div class="alert alert-success">
+              <i class="fas fa-check-circle"></i> {% trans %}Location already captured{% endtrans %}
+            </div>
+            <div id="location-info">
+              <p><strong>{% trans %}Latitude:{% endtrans %}</strong> {{ "%.6f"|format(verification.latitude) if verification else "" }}</p>
+              <p><strong>{% trans %}Longitude:{% endtrans %}</strong> {{ "%.6f"|format(verification.longitude) if verification else "" }}</p>
+              {% if verification and verification.latitude %}
+              <p class="mt-2">
+                <a href="https://www.google.com/maps?q={{ verification.latitude }},{{ verification.longitude }}" target="_blank" class="btn btn-sm btn-outline-primary">
+                  <i class="fas fa-map-marker-alt"></i> {% trans %}View on Map{% endtrans %}
+                </a>
+              </p>
+              {% endif %}
+            </div>
+          {% else %}
+            <div id="location-capture-section">
+              <p>{% trans %}Please allow location access to capture your current location{% endtrans %}</p>
+              <div id="location-status" class="alert alert-info">
+                <i class="fas fa-info-circle"></i> {% trans %}Requesting location...{% endtrans %}
+              </div>
+              <div class="text-center mt-3">
+                <button id="capture-location-btn" class="btn btn-primary">
+                  <i class="fas fa-map-marker-alt"></i> {% trans %}Capture Location{% endtrans %}
+                </button>
+              </div>
+              <div id="location-result" class="mt-3" style="display: none;">
+                <p><strong>{% trans %}Latitude:{% endtrans %}</strong> <span id="lat-display"></span></p>
+                <p><strong>{% trans %}Longitude:{% endtrans %}</strong> <span id="lng-display"></span></p>
+              </div>
+            </div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+
+          {% if verification_complete %}
+            <div class="row">
+              <div class="col-md-12">
+                <div class="alert alert-success text-center">
+                  <h4><i class="fas fa-check-circle"></i> {% trans %}Verification Complete!{% endtrans %}</h4>
+                  <p>{% trans %}You can now access the challenges.{% endtrans %}</p>
+                  {% if request.args.get('next') %}
+                    {% set next_url = request.args.get('next') %}
+                    {# Validate next URL is safe to prevent open redirect #}
+                    {% if next_url and next_url.startswith('/') and not next_url.startswith('//') and not 'javascript:' in next_url.lower() and not 'data:' in next_url.lower() %}
+                      <a href="{{ next_url|e }}" class="btn btn-success btn-lg">
+                        {% trans %}Continue{% endtrans %}
+                      </a>
+                    {% else %}
+                      <a href="{{ url_for('challenges.listing') }}" class="btn btn-success btn-lg">
+                        {% trans %}Go to Challenges{% endtrans %}
+                      </a>
+                    {% endif %}
+                  {% else %}
+                    <a href="{{ url_for('challenges.listing') }}" class="btn btn-success btn-lg">
+                      {% trans %}Go to Challenges{% endtrans %}
+                    </a>
+                  {% endif %}
+                </div>
+              </div>
+            </div>
+          {% endif %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="/plugins/face_location_verification/assets/crypto_utils.js"></script>
+<script>
+// Initialize encryption with server-provided key (IV generated dynamically per encryption)
+if (window._cryptoInit && typeof window._cryptoInit === 'function') {
+    window._cryptoInit('{{ encryption_key|e }}');
+}
+</script>
+<script src="/plugins/face_location_verification/assets/verification.js"></script>
+{% endblock %}
+
