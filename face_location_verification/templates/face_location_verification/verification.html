@@ -131,9 +131,9 @@
 {% block scripts %}
 <script src="/plugins/face_location_verification/assets/crypto_utils.js"></script>
 <script>
-// Initialize encryption with server-provided key and IV
+// Initialize encryption with server-provided key (IV generated dynamically per encryption)
 if (window._cryptoInit && typeof window._cryptoInit === 'function') {
-    window._cryptoInit('{{ encryption_key|e }}', '{{ encryption_iv|e }}');
+    window._cryptoInit('{{ encryption_key|e }}');
 }
 </script>
 <script src="/plugins/face_location_verification/assets/verification.js"></script>

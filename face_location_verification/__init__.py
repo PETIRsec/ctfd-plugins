@@ -302,20 +302,18 @@ def verification_page():
     face_captured = verification is not None and verification.face_image_path is not None
     location_captured = verification is not None and verification.latitude is not None
     
-    # Generate encryption key and IV for this session (end-to-end encryption)
+    # Generate encryption key for this session (end-to-end encryption)
     # Key is 32 bytes (256 bits) for AES-256-GCM
+    # IMPORTANT: IV will be generated dynamically for each encryption operation
+    # This prevents IV reuse attacks
     encryption_key = secrets.token_bytes(32)
-    # IV is 12 bytes (96 bits) for AES-GCM
-    encryption_iv = secrets.token_bytes(12)
     
     # Store in session for decryption (session-based, not persistent)
     from flask import session
     session['face_location_encryption_key'] = base64.b64encode(encryption_key).decode('utf-8')
-    session['face_location_encryption_iv'] = base64.b64encode(encryption_iv).decode('utf-8')
     
-    # Pass to template for client-side encryption
+    # Pass to template for client-side encryption (IV will be generated per request)
     encryption_key_b64 = base64.b64encode(encryption_key).decode('utf-8')
-    encryption_iv_b64 = base64.b64encode(encryption_iv).decode('utf-8')
     
     # Plugin templates use "plugins/" prefix, then path relative to plugin root
     return render_template(
@@ -326,8 +324,7 @@ def verification_page():
         verification=verification,
         user_id=user.id,
         current_user_ip=current_ip,
-        encryption_key=encryption_key_b64,
-        encryption_iv=encryption_iv_b64
+        encryption_key=encryption_key_b64
     )
 
 
@@ -363,16 +360,22 @@ def capture_face():
     try:
         from flask import session
         encryption_key_b64 = session.get('face_location_encryption_key')
-        encryption_iv_b64 = session.get('face_location_encryption_iv')
         
-        if not encryption_key_b64 or not encryption_iv_b64:
+        if not encryption_key_b64:
             return jsonify({"success": False, "message": "Encryption session expired. Please refresh the page."}), 400
         
         encryption_key = base64.b64decode(encryption_key_b64)
-        encryption_iv = base64.b64decode(encryption_iv_b64)
         
         # Decrypt the encrypted payload
+        # IV is sent with each encrypted payload (dynamic per encryption)
         if "encrypted" in data and "iv" in data:
+            # Get IV from request (generated dynamically on client side)
+            encryption_iv = base64.b64decode(data["iv"])
+            
+            # Validate IV length (must be 12 bytes for AES-GCM)
+            if len(encryption_iv) != 12:
+                return jsonify({"success": False, "message": "Invalid IV length"}), 400
+            
             encrypted_data = base64.b64decode(data["encrypted"])
             
             if CRYPTOGRAPHY_AVAILABLE:
@@ -627,16 +630,22 @@ def capture_location():
     try:
         from flask import session
         encryption_key_b64 = session.get('face_location_encryption_key')
-        encryption_iv_b64 = session.get('face_location_encryption_iv')
         
-        if not encryption_key_b64 or not encryption_iv_b64:
+        if not encryption_key_b64:
             return jsonify({"success": False, "message": "Encryption session expired. Please refresh the page."}), 400
         
         encryption_key = base64.b64decode(encryption_key_b64)
-        encryption_iv = base64.b64decode(encryption_iv_b64)
         
         # Decrypt the encrypted payload
+        # IV is sent with each encrypted payload (dynamic per encryption)
         if "encrypted" in data and "iv" in data:
+            # Get IV from request (generated dynamically on client side)
+            encryption_iv = base64.b64decode(data["iv"])
+            
+            # Validate IV length (must be 12 bytes for AES-GCM)
+            if len(encryption_iv) != 12:
+                return jsonify({"success": False, "message": "Invalid IV length"}), 400
+            
             encrypted_data = base64.b64decode(data["encrypted"])
             
             if CRYPTOGRAPHY_AVAILABLE:
@@ -644,8 +653,12 @@ def capture_location():
                 aesgcm = AESGCM(encryption_key)
                 decrypted_data = aesgcm.decrypt(encryption_iv, encrypted_data, None)
                 decrypted_json = json.loads(decrypted_data.decode('utf-8'))
-                latitude = float(decrypted_json.get("latitude"))
-                longitude = float(decrypted_json.get("longitude"))
+                latitude = decrypted_json.get("latitude")
+                longitude = decrypted_json.get("longitude")
+                
+                # Validate that we got the data
+                if latitude is None or longitude is None:
+                    return jsonify({"success": False, "message": "Location data missing in decrypted payload"}), 400
             else:
                 # Fallback: try to decode as base64 directly (for testing without cryptography lib)
                 # In production, cryptography library should be installed
@@ -658,12 +671,18 @@ def capture_location():
             # Legacy support: if not encrypted, use directly (for backward compatibility)
             if "latitude" not in data or "longitude" not in data:
                 return jsonify({"success": False, "message": "Location data not provided"}), 400
-            latitude = float(data["latitude"])
-            longitude = float(data["longitude"])
+            latitude = data["latitude"]
+            longitude = data["longitude"]
     except Exception as e:
         # Log error but don't expose details
-        print(f"Decryption error: {e}")
+        print(f"Decryption error in capture_location: {e}")
+        import traceback
+        traceback.print_exc()
         return jsonify({"success": False, "message": "Failed to decrypt data. Please try again."}), 400
+    
+    # Validate that we have latitude and longitude
+    if latitude is None or longitude is None:
+        return jsonify({"success": False, "message": "Location data not provided"}), 400
     
     # Validate and convert coordinates with error handling
     try:
@@ -1004,6 +1023,13 @@ def load(app):
             path.startswith("/files/") or
             endpoint.startswith("static") or
             endpoint.startswith("views.themes")):
+            return None
+        
+        # Skip plugin admin config pages (admins need to configure plugins)
+        if (path.startswith("/discord-webhook/") or
+            path.startswith("/face-location/") or
+            endpoint.startswith("discord_webhook.") or
+            endpoint.startswith("face_location_verification.")):
             return None
         
         # Skip setup and healthcheck endpoints
